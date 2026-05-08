@@ -1,0 +1,9 @@
+streamlit
+ddgs
+PyPDF2
+google-generativeai
+playwright
+fpdf2
+beautifulsoup4
+sqlalchemy
+python-dotenv
