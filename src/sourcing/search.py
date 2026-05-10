@@ -3,11 +3,12 @@ from bs4 import BeautifulSoup
 import requests
 import json
 import os
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 import warnings
+import time
 
-# Suppress the deprecation warning for google.generativeai for clean output
+# Suppress the deprecation warning
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 load_dotenv()
@@ -71,8 +72,7 @@ def evaluate_job(job_description: str) -> dict:
     if not api_key or api_key == "your_api_key_here":
         return {"is_match": True, "reason": "No API key to evaluate. Assuming match."}
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    client = genai.Client(api_key=api_key)
     
     prompt = f"""
     You are an AI assistant helping an international MS in CS student on OPT find jobs.
@@ -93,18 +93,30 @@ def evaluate_job(job_description: str) -> dict:
     {job_description[:5000]} # Limit to 5k chars for API constraints
     """
     
-    try:
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text[7:-3].strip()
-        elif response_text.startswith("```"):
-            response_text = response_text[3:-3].strip()
-            
-        return json.loads(response_text)
-    except Exception as e:
-        print(f"Error evaluating job: {e}")
-        return {"is_match": False, "reason": "Error during AI evaluation."}
+    max_retries = 3
+    base_delay = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+            )
+            response_text = response.text.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:-3].strip()
+            elif response_text.startswith("```"):
+                response_text = response_text[3:-3].strip()
+
+            time.sleep(base_delay) # Add standard delay to respect rate limits
+            return json.loads(response_text)
+        except Exception as e:
+            print(f"Error evaluating job (Attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                sleep_time = base_delay * (2 ** attempt)
+                print(f"Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+            else:
+                return {"is_match": False, "reason": f"Error during AI evaluation after {max_retries} attempts."}
 
 if __name__ == "__main__":
     # Test DDG

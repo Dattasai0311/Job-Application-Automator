@@ -1,9 +1,10 @@
 streamlit
 ddgs
 PyPDF2
-google-generativeai
+google-genai
 playwright
 fpdf2
 beautifulsoup4
 sqlalchemy
 python-dotenv
+pandas
