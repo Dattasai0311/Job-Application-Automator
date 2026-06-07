@@ -116,12 +116,27 @@ with tab3:
     else:
         st.write(f"Found {len(queued_jobs)} jobs queued for application.")
         df = pd.DataFrame([{
-            "ID": j.id, "Company": j.company, "Title": j.title, "ATS": j.ats_type, "URL": j.url
+            "Select": False, "ID": j.id, "Company": j.company, "Title": j.title, "ATS": j.ats_type, "URL": j.url
         } for j in queued_jobs])
-        st.dataframe(df)
+
+        edited_df = st.data_editor(
+            df,
+            column_config={
+                "Select": st.column_config.CheckboxColumn(
+                    "Select to Apply",
+                    help="Select the jobs you want to apply to",
+                    default=False,
+                )
+            },
+            disabled=["ID", "Company", "Title", "ATS", "URL"],
+            hide_index=True,
+        )
         
         if st.button("Start Autonomous Applying"):
-            if not os.path.exists("master_profile.json"):
+            selected_ids = edited_df[edited_df["Select"] == True]["ID"].tolist()
+            if not selected_ids:
+                st.warning("Please select at least one job to apply to.")
+            elif not os.path.exists("master_profile.json"):
                 st.error("Missing master_profile.json")
             else:
                 with open("master_profile.json", "r") as f:
@@ -139,8 +154,9 @@ with tab3:
                     "github": info.get("github", "")
                 }
                 
+                selected_jobs = [j for j in queued_jobs if j.id in selected_ids]
                 progress = st.progress(0)
-                for i, job in enumerate(queued_jobs):
+                for i, job in enumerate(selected_jobs):
                     st.write(f"Processing: {job.company} - {job.title}")
                     
                     # 1. Tailor Resume
@@ -159,7 +175,7 @@ with tab3:
                         update_job_status(db, job.id, "failed", "Bot failed to complete form.")
                         st.error(f"Failed to apply to {job.company}")
                         
-                    progress.progress((i + 1) / len(queued_jobs))
+                    progress.progress((i + 1) / len(selected_jobs))
     db.close()
 
 # --- TAB 4: DASHBOARD ---

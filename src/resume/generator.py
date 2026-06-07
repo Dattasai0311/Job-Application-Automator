@@ -33,69 +33,61 @@ def generate_pdf(resume_data: dict, output_path: str):
     pdf.cell(0, 5, " | ".join(contact_info), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
     pdf.ln(5)
     
-    # Summary
-    summary = resume_data.get("summary")
-    if summary:
+    # Sections
+    sections = resume_data.get("sections", [])
+    for section in sections:
+        title = section.get("title", "").upper()
+        if not title:
+            continue
+            
         pdf.set_font("helvetica", 'B', 12)
-        pdf.cell(0, 8, "PROFESSIONAL SUMMARY", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
-        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
-        pdf.ln(2)
-        pdf.set_font("helvetica", '', 10)
-        pdf.multi_cell(0, 5, summary)
-        pdf.ln(5)
-    
-    # Skills
-    skills = resume_data.get("skills", [])
-    if skills:
-        pdf.set_font("helvetica", 'B', 12)
-        pdf.cell(0, 8, "SKILLS", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
-        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
-        pdf.ln(2)
-        pdf.set_font("helvetica", '', 10)
-        skills_str = ", ".join(skills)
-        pdf.multi_cell(0, 5, skills_str)
-        pdf.ln(5)
-    
-    # Experience
-    experience = resume_data.get("experience", [])
-    if experience:
-        pdf.set_font("helvetica", 'B', 12)
-        pdf.cell(0, 8, "EXPERIENCE", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
+        pdf.cell(0, 8, title, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
         pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
         pdf.ln(2)
         
-        for exp in experience:
-            pdf.set_font("helvetica", 'B', 10)
-            pdf.cell(100, 5, exp.get("role", ""), new_x=XPos.RIGHT, new_y=YPos.TOP, align='L')
-            pdf.cell(90, 5, exp.get("duration", ""), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='R')
-            
-            pdf.set_font("helvetica", 'I', 10)
-            pdf.cell(0, 5, exp.get("company", ""), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
-            
-            pdf.set_font("helvetica", '', 10)
-            for bullet in exp.get("description", []):
-                pdf.set_x(15)
-                # Handle non-ascii characters gracefully for basic FPDF
-                clean_bullet = bullet.encode('latin-1', 'replace').decode('latin-1')
-                pdf.multi_cell(0, 5, f"- {clean_bullet}")
-            pdf.ln(3)
+        sec_type = section.get("type")
 
-    # Education
-    education = resume_data.get("education", [])
-    if education:
-        pdf.set_font("helvetica", 'B', 12)
-        pdf.cell(0, 8, "EDUCATION", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
-        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
-        pdf.ln(2)
-        
-        for edu in education:
-            pdf.set_font("helvetica", 'B', 10)
-            pdf.cell(140, 5, edu.get("degree", ""), new_x=XPos.RIGHT, new_y=YPos.TOP, align='L')
-            pdf.cell(50, 5, edu.get("graduation_date", ""), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='R')
-            
-            pdf.set_font("helvetica", 'I', 10)
-            pdf.cell(0, 5, edu.get("university", ""), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
-            pdf.ln(2)
+        if sec_type == "text":
+            content = section.get("content", "")
+            if content:
+                pdf.set_font("helvetica", '', 10)
+                clean_content = content.encode('latin-1', 'replace').decode('latin-1')
+                pdf.multi_cell(0, 5, clean_content)
+                pdf.ln(5)
+
+        elif sec_type == "list":
+            items = section.get("list", [])
+            if items:
+                pdf.set_font("helvetica", '', 10)
+                clean_items = [item.encode('latin-1', 'replace').decode('latin-1') for item in items]
+                items_str = ", ".join(clean_items)
+                pdf.multi_cell(0, 5, items_str)
+                pdf.ln(5)
+
+        elif sec_type == "items":
+            items = section.get("items", [])
+            for item in items:
+                pdf.set_font("helvetica", 'B', 10)
+                heading = item.get("heading", "").encode('latin-1', 'replace').decode('latin-1')
+                date_str = item.get("date", "").encode('latin-1', 'replace').decode('latin-1')
+
+                pdf.cell(140, 5, heading, new_x=XPos.RIGHT, new_y=YPos.TOP, align='L')
+                pdf.cell(50, 5, date_str, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='R')
+
+                subheading = item.get("subheading", "")
+                if subheading:
+                    pdf.set_font("helvetica", 'I', 10)
+                    clean_sub = subheading.encode('latin-1', 'replace').decode('latin-1')
+                    pdf.cell(0, 5, clean_sub, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
+
+                bullets = item.get("bullets", [])
+                if bullets:
+                    pdf.set_font("helvetica", '', 10)
+                    for bullet in bullets:
+                        pdf.set_x(15)
+                        clean_bullet = bullet.encode('latin-1', 'replace').decode('latin-1')
+                        pdf.multi_cell(0, 5, f"- {clean_bullet}")
+                pdf.ln(3)
 
     pdf.output(output_path)
 
@@ -103,10 +95,12 @@ if __name__ == "__main__":
     # Test generation
     dummy_data = {
         "personal_info": {"name": "John Doe", "email": "john@example.com"},
-        "summary": "Experienced software engineer.",
-        "skills": ["Python", "Java"],
-        "experience": [{"role": "SDE", "company": "Tech Corp", "duration": "2020 - Present", "description": ["Did things", "Fixed bugs"]}],
-        "education": [{"degree": "MS CS", "university": "State Univ", "graduation_date": "2020"}]
+        "sections": [
+            {"title": "Professional Summary", "type": "text", "content": "Experienced software engineer."},
+            {"title": "Skills", "type": "list", "list": ["Python", "Java"]},
+            {"title": "Experience", "type": "items", "items": [{"heading": "SDE", "subheading": "Tech Corp", "date": "2020 - Present", "bullets": ["Did things", "Fixed bugs"]}]},
+            {"title": "Education", "type": "items", "items": [{"heading": "MS CS", "subheading": "State Univ", "date": "2020"}]}
+        ]
     }
     generate_pdf(dummy_data, "test_resume.pdf")
     print("Test PDF generated successfully.")
